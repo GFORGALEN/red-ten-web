@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import { analyzePlay, canBeat } from "../shared/rules";
 import { cardShortText, getCardValue, getRankValue, sortCards } from "../shared/cards";
@@ -212,7 +212,14 @@ export function App() {
             onPlay={playSelectedCards}
             onPass={() => roomAction("move:pass")}
           />
-          {!dockCollapsed && <Hand cards={room.selfHand} selectedIds={selectedIds} onToggle={toggleCard} />}
+          {!dockCollapsed && (
+            <Hand
+              cards={room.selfHand}
+              selectedIds={selectedIds}
+              onToggle={toggleCard}
+              onSelectionChange={setSelectedIds}
+            />
+          )}
         </section>
       </main>
     </Shell>
@@ -520,12 +527,80 @@ function ActionBar({
 function Hand({
   cards,
   selectedIds,
-  onToggle
+  onToggle,
+  onSelectionChange
 }: {
   cards: Card[];
   selectedIds: string[];
   onToggle: (cardId: string) => void;
+  onSelectionChange: (cardIds: string[]) => void;
 }) {
+  const dragRef = useRef<{
+    startIndex: number;
+    lastIndex: number;
+    shouldSelect: boolean;
+    baseSelection: Set<string>;
+  } | null>(null);
+
+  function cardIndexFromPoint(clientX: number, clientY: number): number | null {
+    const element = document.elementFromPoint(clientX, clientY);
+    const cardElement = element?.closest("[data-card-index]");
+    if (!(cardElement instanceof HTMLElement)) return null;
+
+    const index = Number(cardElement.dataset.cardIndex);
+    return Number.isFinite(index) ? index : null;
+  }
+
+  function applyDragSelection(toIndex: number) {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    drag.lastIndex = toIndex;
+    const [from, to] = [drag.startIndex, toIndex].sort((left, right) => left - right);
+    const nextSelection = new Set(drag.baseSelection);
+
+    for (let index = from; index <= to; index += 1) {
+      const cardId = cards[index]?.id;
+      if (!cardId) continue;
+      if (drag.shouldSelect) {
+        nextSelection.add(cardId);
+      } else {
+        nextSelection.delete(cardId);
+      }
+    }
+
+    onSelectionChange(cards.filter((card) => nextSelection.has(card.id)).map((card) => card.id));
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLButtonElement>, index: number) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    dragRef.current = {
+      startIndex: index,
+      lastIndex: index,
+      shouldSelect: !selectedIds.includes(cards[index].id),
+      baseSelection: new Set(selectedIds)
+    };
+    applyDragSelection(index);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (!dragRef.current) return;
+    event.preventDefault();
+
+    const index = cardIndexFromPoint(event.clientX, event.clientY);
+    if (index === null || index === dragRef.current.lastIndex) return;
+    applyDragSelection(index);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    if (!dragRef.current) return;
+    event.preventDefault();
+    dragRef.current = null;
+  }
+
   return (
     <div className="hand-scroll" aria-label="我的手牌">
       <div className="hand-fan" style={{ ["--card-count" as string]: cards.length }}>
@@ -533,7 +608,18 @@ function Hand({
           <button
             className={`card-button ${selectedIds.includes(card.id) ? "selected" : ""}`}
             key={card.id}
-            onClick={() => onToggle(card.id)}
+            data-card-index={index}
+            onPointerDown={(event) => handlePointerDown(event, index)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onClick={(event) => event.preventDefault()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onToggle(card.id);
+              }
+            }}
             style={{ zIndex: index }}
             aria-label={`选择 ${cardShortText(card)}`}
           >

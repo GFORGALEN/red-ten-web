@@ -581,7 +581,8 @@ input {
   transition:
     transform 140ms ease,
     filter 140ms ease;
-  touch-action: manipulation;
+  touch-action: none;
+  user-select: none;
 }
 
 .card-button:first-child {
@@ -590,6 +591,7 @@ input {
 
 .card-button.selected {
   transform: translateY(-18px);
+  z-index: 1000 !important;
   filter: drop-shadow(0 0 8px rgba(255, 214, 91, 0.95));
 }
 
@@ -1033,5 +1035,231 @@ input {
 
   .card-button.selected {
     transform: translateY(-10px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 760px) and (max-width: 1100px) {
+  :root {
+    --card-width: 54px;
+    --card-height: 78px;
+    --card-overlap: 31px;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell,
+  .game-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .game-shell {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: 4px 8px 0;
+  }
+
+  .game-topbar {
+    grid-template-columns: 34px minmax(0, auto) auto;
+    gap: 6px;
+  }
+
+  .icon-button {
+    width: 34px;
+    min-height: 34px;
+    font-size: 24px;
+  }
+
+  .room-title {
+    justify-self: center;
+    padding: 3px 12px;
+  }
+
+  .room-title span {
+    font-size: 10px;
+  }
+
+  .room-title strong {
+    font-size: 15px;
+  }
+
+  .small {
+    min-height: 32px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .arena {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 3px;
+    min-height: 0;
+    padding: 3px 0;
+  }
+
+  .opponent-rail {
+    grid-template-columns: repeat(var(--opponent-count), minmax(96px, 134px));
+    gap: 5px;
+    padding: 0 2px 2px;
+  }
+
+  .player-badge {
+    min-height: 40px;
+    gap: 5px;
+    padding: 4px 7px;
+  }
+
+  .player-badge .avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .player-copy strong {
+    font-size: 12px;
+  }
+
+  .player-copy span {
+    font-size: 10px;
+  }
+
+  .badge-tags {
+    display: none;
+  }
+
+  .table-stage {
+    min-height: 0;
+    height: 100%;
+    border-radius: 24px;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+
+  .table-stage::before {
+    inset: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .turn-banner {
+    padding: 4px 11px;
+    font-size: 14px;
+    box-shadow: 0 3px 0 rgba(82, 39, 11, 0.2);
+  }
+
+  .last-play-stage {
+    min-height: 58px;
+    gap: 4px;
+  }
+
+  .play-caption span,
+  .empty-trick span {
+    font-size: 10px;
+  }
+
+  .play-caption strong,
+  .empty-trick strong {
+    font-size: 14px;
+  }
+
+  .played-cards {
+    max-height: 60px;
+    overflow-y: auto;
+  }
+
+  .card-face.compact {
+    width: 30px;
+    height: 42px;
+  }
+
+  .bottom-dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head actions"
+      "hand hand";
+    align-items: end;
+    gap: 3px 8px;
+    padding: 3px 0 max(4px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(6, 37, 52, 0.1), rgba(6, 37, 52, 0.96) 18%);
+  }
+
+  .bottom-dock.collapsed {
+    grid-template-areas: "head actions";
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dock-head {
+    grid-area: head;
+    min-height: 28px;
+    justify-content: flex-start;
+  }
+
+  .dock-toggle {
+    min-height: 28px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .dock-summary {
+    max-width: 160px;
+    padding: 4px 9px;
+  }
+
+  .self-strip {
+    display: none;
+  }
+
+  .action-bar {
+    grid-area: actions;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 1px;
+  }
+
+  .action-bar > button,
+  .selected-count {
+    flex: 0 0 auto;
+  }
+
+  .plain-button,
+  .gold-button,
+  .pass-button {
+    min-height: 32px;
+    padding-inline: 12px;
+    font-size: 12px;
+    box-shadow: 0 3px 0 rgba(61, 30, 7, 0.3);
+  }
+
+  .selected-count {
+    min-height: 32px;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+
+  .hand-scroll {
+    grid-area: hand;
+    padding: 10px 4px 1px;
+  }
+
+  .hand-fan {
+    min-height: calc(var(--card-height) + 12px);
+  }
+
+  .card-button.selected {
+    transform: translateY(-9px);
+  }
+
+  .toast {
+    bottom: 8px;
+    font-size: 12px;
   }
 }
