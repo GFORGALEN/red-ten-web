@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { buildDeck } from "../src/shared/cards";
+import { RoomRuntime } from "../src/server/roomManager";
+import type { Card } from "../src/shared/types";
+
+const deck = buildDeck(2);
+
+function card(id: string): Card {
+  const found = deck.find((item) => item.id === id);
+  if (!found) throw new Error(`Missing card ${id}`);
+  return found;
+}
+
+describe("room finish timing", () => {
+  it("finishes immediately when the only red-ten player goes out first", () => {
+    const room = new RoomRuntime(
+      "TEST1",
+      { playerCount: 3, deckCount: 2 },
+      { id: "red", nickname: "red" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("n1", "n1");
+    room.join("n2", "n2");
+
+    const red = room.state.players.find((player) => player.id === "red")!;
+    const n1 = room.state.players.find((player) => player.id === "n1")!;
+    const n2 = room.state.players.find((player) => player.id === "n2")!;
+
+    red.hand = [card("1-hearts-10"), card("2-hearts-10")];
+    red.isRedTeam = true;
+    n1.hand = [card("1-spades-3")];
+    n1.isRedTeam = false;
+    n2.hand = [card("1-clubs-3")];
+    n2.isRedTeam = false;
+
+    room.state.phase = "playing";
+    room.state.currentTurn = "red";
+
+    room.playCards("red", red.hand.map((item) => item.id));
+
+    expect(room.state.phase).toBe("finished");
+    expect(room.state.result?.outcome).toBe("red_capture");
+    expect(room.state.result?.capturedPlayerIds).toEqual(["n1", "n2"]);
+  });
+});

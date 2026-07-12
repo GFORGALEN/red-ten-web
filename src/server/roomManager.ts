@@ -9,6 +9,7 @@ import {
 import { analyzePlay, calculateResult, canBeat, selectedContainsHeartTen } from "../shared/rules";
 import type {
   Card,
+  GameResult,
   GameState,
   LeadClaimState,
   Player,
@@ -424,21 +425,113 @@ export class RoomRuntime {
   }
 
   private finishIfReady(): boolean {
+    const decidedResult = this.calculateDecidedResult();
+    if (decidedResult) {
+      this.finishGame(decidedResult);
+      return true;
+    }
+
     const unfinished = this.state.players.filter((player) => !player.finishRank);
     if (unfinished.length === 1) {
       this.markFinished(unfinished[0]);
     }
 
     if (this.state.players.every((player) => player.finishRank)) {
-      this.clearLeadTimer();
-      this.state.phase = "finished";
-      this.state.currentTurn = undefined;
-      this.state.passes = [];
-      this.state.result = calculateResult(this.state.players);
+      this.finishGame(calculateResult(this.state.players));
       return true;
     }
 
     return false;
+  }
+
+  private finishGame(result: GameResult): void {
+    this.clearLeadTimer();
+    this.state.phase = "finished";
+    this.state.currentTurn = undefined;
+    this.state.passes = [];
+    this.state.result = result;
+  }
+
+  private calculateDecidedResult(): GameResult | undefined {
+    const rankedFinished = this.state.players
+      .filter((player) => player.finishRank)
+      .sort((left, right) => left.finishRank! - right.finishRank!);
+    const redPlayers = this.state.players.filter((player) => player.isRedTeam);
+    const normalPlayers = this.state.players.filter((player) => !player.isRedTeam);
+
+    if (redPlayers.length === 0 || normalPlayers.length === 0 || rankedFinished.length === 0) {
+      return undefined;
+    }
+
+    if (redPlayers.length === 1) {
+      const redPlayer = redPlayers[0];
+      if (redPlayer.finishRank === 1) {
+        return {
+          outcome: "red_capture",
+          winner: "red",
+          message: "红十第一名出完，红十方抓全部。",
+          capturedPlayerIds: normalPlayers.map((player) => player.id)
+        };
+      }
+
+      if (rankedFinished[0].id !== redPlayer.id) {
+        return {
+          outcome: "draw",
+          winner: "none",
+          message: "单红十没有第一名出完，本局平局。",
+          capturedPlayerIds: []
+        };
+      }
+
+      return undefined;
+    }
+
+    const redIds = new Set(redPlayers.map((player) => player.id));
+    const normalIds = new Set(normalPlayers.map((player) => player.id));
+    const finishedTopForRed = rankedFinished.slice(0, redPlayers.length);
+    const finishedTopForNormal = rankedFinished.slice(0, normalPlayers.length);
+
+    if (
+      finishedTopForRed.length >= redPlayers.length &&
+      finishedTopForRed.every((player) => redIds.has(player.id))
+    ) {
+      return {
+        outcome: "red_capture",
+        winner: "red",
+        message: "红十方包揽前几名，普通方全被抓。",
+        capturedPlayerIds: normalPlayers.map((player) => player.id)
+      };
+    }
+
+    if (
+      finishedTopForNormal.length >= normalPlayers.length &&
+      finishedTopForNormal.every((player) => normalIds.has(player.id))
+    ) {
+      return {
+        outcome: "normal_capture",
+        winner: "normal",
+        message: "普通方包揽前几名，红十方被抓。",
+        capturedPlayerIds: redPlayers.map((player) => player.id)
+      };
+    }
+
+    const redCanStillTakeTop = rankedFinished
+      .slice(0, redPlayers.length)
+      .every((player) => redIds.has(player.id));
+    const normalCanStillTakeTop = rankedFinished
+      .slice(0, normalPlayers.length)
+      .every((player) => normalIds.has(player.id));
+
+    if (!redCanStillTakeTop && !normalCanStillTakeTop) {
+      return {
+        outcome: "draw",
+        winner: "none",
+        message: "双方名次交错，本局平局。",
+        capturedPlayerIds: []
+      };
+    }
+
+    return undefined;
   }
 
   private finishTrickAndLead(lastPlay: PublicPlay): void {
