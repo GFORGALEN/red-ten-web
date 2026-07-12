@@ -1,8 +1,9 @@
 services:
   - type: web
     name: red-ten-web
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /health
     autoDeploy: true
