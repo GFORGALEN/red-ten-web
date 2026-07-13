@@ -133,6 +133,28 @@ export function App() {
     );
   }
 
+  function pickTribute(cardId: string) {
+    if (!socket || !room) return;
+    emitWithAck(
+      socket,
+      "tribute:pick",
+      { roomId: room.roomId, playerId, cardId },
+      () => undefined,
+      setError
+    );
+  }
+
+  function returnTributeCards() {
+    if (!socket || !room) return;
+    emitWithAck(
+      socket,
+      "tribute:return",
+      { roomId: room.roomId, playerId, cardIds: selectedIds },
+      () => setSelectedIds([]),
+      setError
+    );
+  }
+
   function toggleCard(cardId: string) {
     setSelectedIds((current) => {
       if (current.includes(cardId)) {
@@ -188,7 +210,7 @@ export function App() {
 
         <section className="arena">
           <OpponentRail room={room} />
-          <Board room={room} now={now} />
+          <Board room={room} now={now} onPickTribute={pickTribute} />
         </section>
 
         <section className={`bottom-dock ${dockCollapsed ? "collapsed" : ""}`}>
@@ -211,6 +233,7 @@ export function App() {
             onClear={() => setSelectedIds([])}
             onPlay={playSelectedCards}
             onPass={() => roomAction("move:pass")}
+            onReturnTribute={returnTributeCards}
           />
           {!dockCollapsed && (
             <Hand
@@ -368,12 +391,16 @@ function PlayerBadge({ room, player }: { room: RoomView; player: RoomView["playe
 
 function Board({
   room,
-  now
+  now,
+  onPickTribute
 }: {
   room: RoomView;
   now: number;
+  onPickTribute: (cardId: string) => void;
 }) {
   const currentPlayer = room.players.find((player) => player.id === room.currentTurn);
+  const tributePicker = room.players.find((player) => player.id === room.tribute?.currentPickerId);
+  const tributeReturner = room.players.find((player) => player.id === room.tribute?.currentReturnerId);
 
   return (
     <div className="table-stage">
@@ -381,11 +408,38 @@ function Board({
         {room.phase === "lobby" && "等待玩家入座"}
         {room.phase === "claimLead" && `等待红桃3首出确认${deadlineText(room.leadClaim?.deadline, now)}`}
         {room.phase === "playing" && (currentPlayer ? `轮到 ${currentPlayer.nickname}` : "准备下一轮")}
+        {room.phase === "tribute" &&
+          (tributePicker
+            ? `进贡：${tributePicker.nickname} 选贡牌`
+            : tributeReturner
+              ? `进贡：${tributeReturner.nickname} 返牌`
+              : "进贡处理中")}
         {room.phase === "finished" && room.result?.message}
       </div>
 
       <div className="last-play-stage">
-        {room.lastPlay ? (
+        {room.phase === "tribute" && room.tribute ? (
+          <div className="tribute-panel">
+            <div className="play-caption">
+              <span>贡牌池</span>
+              <strong>
+                {room.canPickTribute ? "点一张贡牌收入手牌" : room.canReturnTribute ? "从手牌选择返还牌" : "等待其他玩家操作"}
+              </strong>
+            </div>
+            <div className="played-cards tribute-cards">
+              {room.tribute.pool.map((pick) => (
+                <button
+                  className="tribute-card-button"
+                  disabled={!room.canPickTribute}
+                  key={pick.card.id}
+                  onClick={() => onPickTribute(pick.card.id)}
+                >
+                  <CardFace card={pick.card} compact />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : room.lastPlay ? (
           <>
             <div className="play-caption">
               <span>桌面最大</span>
@@ -465,7 +519,8 @@ function ActionBar({
   onHint,
   onClear,
   onPlay,
-  onPass
+  onPass,
+  onReturnTribute
 }: {
   room: RoomView;
   isMyTurn: boolean;
@@ -478,6 +533,7 @@ function ActionBar({
   onClear: () => void;
   onPlay: () => void;
   onPass: () => void;
+  onReturnTribute: () => void;
 }) {
   const self = room.players.find((player) => player.isSelf);
 
@@ -512,6 +568,17 @@ function ActionBar({
           </button>
           <button className="pass-button" disabled={!isMyTurn || !room.lastPlay} onClick={onPass}>
             过
+          </button>
+        </>
+      )}
+      {room.phase === "tribute" && (
+        <>
+          {selectedCount > 0 && <span className="selected-count">已选 {selectedCount}</span>}
+          <button className="plain-button" disabled={selectedCount === 0} onClick={onClear}>
+            重选
+          </button>
+          <button className="gold-button" disabled={!room.canReturnTribute || selectedCount === 0} onClick={onReturnTribute}>
+            返牌
           </button>
         </>
       )}
@@ -869,6 +936,7 @@ function phaseText(phase: RoomView["phase"]): string {
   const text = {
     lobby: "等待中",
     claimLead: "抢首出",
+    tribute: "进贡",
     playing: "游戏中",
     finished: "已结束"
   };

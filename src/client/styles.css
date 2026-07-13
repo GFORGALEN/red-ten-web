@@ -416,6 +416,29 @@ input {
   gap: 4px;
 }
 
+.tribute-panel {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.tribute-card-button {
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tribute-card-button:not(:disabled) {
+  filter: drop-shadow(0 0 8px rgba(255, 214, 91, 0.9));
+}
+
+.tribute-card-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .result-panel {
   position: absolute;
   inset: auto 16px 18px;

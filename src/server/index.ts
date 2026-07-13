@@ -9,7 +9,9 @@ import type {
   JoinRoomPayload,
   PlayMovePayload,
   RoomActionPayload,
-  ServerToClientEvents
+  ServerToClientEvents,
+  TributePickPayload,
+  TributeReturnPayload
 } from "../shared/types";
 import { RoomManager } from "./roomManager";
 
@@ -97,6 +99,22 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("tribute:pick", (payload, ack) => {
+    handleRoomAction(socket, payload, ack, (room) => {
+      room.pickTribute(payload.playerId, payload.cardId);
+      void broadcastRoom(payload.roomId);
+      return { accepted: true as const };
+    });
+  });
+
+  socket.on("tribute:return", (payload, ack) => {
+    handleRoomAction(socket, payload, ack, (room) => {
+      room.returnTribute(payload.playerId, payload.cardIds);
+      void broadcastRoom(payload.roomId);
+      return { accepted: true as const };
+    });
+  });
+
   socket.on("disconnect", () => {
     if (socket.data.roomId && socket.data.playerId) {
       manager.disconnect(socket.data.roomId, socket.data.playerId);
@@ -168,7 +186,13 @@ function handleSocketAction<T>(
 
 function handleRoomAction<T>(
   socket: Parameters<Parameters<typeof io.on>[1]>[0],
-  payload: RoomActionPayload | PlayMovePayload | CreateRoomPayload | JoinRoomPayload,
+  payload:
+    | RoomActionPayload
+    | PlayMovePayload
+    | TributePickPayload
+    | TributeReturnPayload
+    | CreateRoomPayload
+    | JoinRoomPayload,
   ack: ((response: Ack<T>) => void) | undefined,
   action: (room: ReturnType<RoomManager["getRoom"]>) => T
 ): void {

@@ -55,7 +55,7 @@ export interface PublicPlay {
   createdAt: number;
 }
 
-export type GamePhase = "lobby" | "claimLead" | "playing" | "finished";
+export type GamePhase = "lobby" | "claimLead" | "tribute" | "playing" | "finished";
 
 export interface Player {
   id: string;
@@ -72,6 +72,25 @@ export interface GameResult {
   winner: "red" | "normal" | "none";
   message: string;
   capturedPlayerIds: string[];
+}
+
+export interface TributePick {
+  winnerId: string;
+  fromPlayerId: string;
+  card: Card;
+}
+
+export interface TributeState {
+  winnerIds: string[];
+  capturedPlayerIds: string[];
+  leaderPlayerId?: string;
+  pool: TributePick[];
+  picks: TributePick[];
+  returnCounts: Record<string, number>;
+  returnedCounts: Record<string, number>;
+  currentPickerId?: string;
+  currentReturnerId?: string;
+  nextLeadPlayerId?: string;
 }
 
 export interface LeadClaimState {
@@ -91,6 +110,7 @@ export interface GameState {
   finishOrder: string[];
   result?: GameResult;
   leadClaim?: LeadClaimState;
+  tribute?: TributeState;
   createdAt: number;
   updatedAt: number;
 }
@@ -122,7 +142,10 @@ export interface RoomView {
   finishOrder: string[];
   result?: GameResult;
   leadClaim?: LeadClaimState;
+  tribute?: TributeState;
   canClaimLead: boolean;
+  canPickTribute: boolean;
+  canReturnTribute: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -145,6 +168,14 @@ export interface RoomActionPayload {
 }
 
 export interface PlayMovePayload extends RoomActionPayload {
+  cardIds: string[];
+}
+
+export interface TributePickPayload extends RoomActionPayload {
+  cardId: string;
+}
+
+export interface TributeReturnPayload extends RoomActionPayload {
   cardIds: string[];
 }
 
@@ -185,6 +216,14 @@ export interface ClientToServerEvents {
   ) => void;
   "move:pass": (
     payload: RoomActionPayload,
+    ack: (response: Ack<{ accepted: true }>) => void
+  ) => void;
+  "tribute:pick": (
+    payload: TributePickPayload,
+    ack: (response: Ack<{ accepted: true }>) => void
+  ) => void;
+  "tribute:return": (
+    payload: TributeReturnPayload,
     ack: (response: Ack<{ accepted: true }>) => void
   ) => void;
 }

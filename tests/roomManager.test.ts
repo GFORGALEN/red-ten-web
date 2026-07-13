@@ -44,4 +44,46 @@ describe("room finish timing", () => {
     expect(room.state.result?.outcome).toBe("red_capture");
     expect(room.state.result?.capturedPlayerIds).toEqual(["n1", "n2"]);
   });
+
+  it("runs tribute before the next captured round starts", () => {
+    const room = new RoomRuntime(
+      "TEST2",
+      { playerCount: 3, deckCount: 2 },
+      { id: "red", nickname: "red" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("n1", "n1");
+    room.join("n2", "n2");
+    room.state.phase = "finished";
+    room.state.result = {
+      outcome: "red_capture",
+      winner: "red",
+      message: "red captured",
+      capturedPlayerIds: ["n1", "n2"]
+    };
+    room.state.players.find((player) => player.id === "red")!.finishRank = 1;
+    room.state.players.find((player) => player.id === "n1")!.finishRank = 2;
+    room.state.players.find((player) => player.id === "n2")!.finishRank = 3;
+
+    room.start("red");
+
+    expect(room.state.phase).toBe("tribute");
+    expect(room.state.tribute?.currentPickerId).toBe("red");
+    expect(room.state.tribute?.pool).toHaveLength(4);
+
+    while (room.state.tribute?.pool.length) {
+      room.pickTribute("red", room.state.tribute.pool[0].card.id);
+    }
+
+    expect(room.state.tribute?.currentReturnerId).toBe("red");
+
+    const red = room.state.players.find((player) => player.id === "red")!;
+    room.returnTribute("red", red.hand.slice(0, 4).map((item) => item.id));
+
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.tribute).toBeUndefined();
+    expect(room.state.currentTurn).toBeTruthy();
+  });
 });

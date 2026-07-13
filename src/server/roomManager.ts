@@ -1,5 +1,6 @@
 import {
   buildDeck,
+  getCardValue,
   isHeartThree,
   isHeartTen,
   shuffleCards,
@@ -15,6 +16,7 @@ import type {
   Player,
   PublicPlay,
   RoomOptions,
+  TributePick,
   RoomView
 } from "../shared/types";
 
@@ -175,6 +177,8 @@ export class RoomRuntime {
       throw new Error("需要满员后才能开始。");
     }
 
+    const previousResult = this.state.result;
+    const previousFinishRanks = new Map(this.state.players.map((player) => [player.id, player.finishRank]));
     this.clearLeadTimer();
     this.resetPlayersForNewGame();
     this.dealCards();
@@ -185,11 +189,22 @@ export class RoomRuntime {
     this.state.finishOrder = [];
     this.state.result = undefined;
     this.state.leadClaim = undefined;
+    this.state.tribute = undefined;
 
+    if (previousResult && previousResult.outcome !== "draw") {
+      this.setupTribute(previousResult, previousFinishRanks);
+      this.touch();
+      return;
+    }
+
+    this.startOpeningLead();
+    this.touch();
+  }
+
+  private startOpeningLead(): void {
     const heartThreeCandidates = this.state.players.filter((player) => {
       return player.hand.some(isHeartThree);
     });
-
     if (heartThreeCandidates.length > 1) {
       this.state.phase = "claimLead";
       this.state.leadClaim = {
@@ -198,10 +213,9 @@ export class RoomRuntime {
       };
       this.leadTimer = setTimeout(() => this.resolveLeadBySeat(), LEAD_CLAIM_MS);
     } else {
+      this.state.phase = "playing";
       this.state.currentTurn = (heartThreeCandidates[0] ?? this.state.players[0]).id;
     }
-
-    this.touch();
   }
 
   claimLead(playerId: string): void {
@@ -222,6 +236,86 @@ export class RoomRuntime {
       throw new Error("你不是红十方。");
     }
     player.isRevealed = true;
+    this.touch();
+  }
+
+  pickTribute(playerId: string, cardId: string): void {
+    if (this.state.phase !== "tribute" || !this.state.tribute) {
+      throw new Error("现在不是选贡牌阶段。");
+    }
+
+    if (this.state.tribute.currentPickerId !== playerId) {
+      throw new Error("还没轮到你选贡牌。");
+    }
+
+    const poolIndex = this.state.tribute.pool.findIndex((pick) => pick.card.id === cardId);
+    if (poolIndex < 0) {
+      throw new Error("这张贡牌不在可选牌池里。");
+    }
+
+    const [picked] = this.state.tribute.pool.splice(poolIndex, 1);
+    picked.winnerId = playerId;
+    this.state.tribute.picks.push(picked);
+    this.requirePlayer(playerId).hand = sortCards([...this.requirePlayer(playerId).hand, picked.card]);
+    this.state.tribute.returnCounts[playerId] = (this.state.tribute.returnCounts[playerId] ?? 0) + 1;
+
+    if (this.state.tribute.pool.length > 0) {
+      this.state.tribute.currentPickerId = this.nextTributeActor(playerId, this.state.tribute.winnerIds);
+    } else {
+      this.state.tribute.currentPickerId = undefined;
+      this.state.tribute.currentReturnerId = this.state.tribute.winnerIds.find((id) => {
+        return (this.state.tribute?.returnCounts[id] ?? 0) > 0;
+      });
+    }
+
+    this.touch();
+  }
+
+  returnTribute(playerId: string, cardIds: string[]): void {
+    if (this.state.phase !== "tribute" || !this.state.tribute) {
+      throw new Error("现在不是返牌阶段。");
+    }
+
+    if (this.state.tribute.currentReturnerId !== playerId) {
+      throw new Error("还没轮到你返牌。");
+    }
+
+    const expectedCount = this.state.tribute.returnCounts[playerId] ?? 0;
+    if (cardIds.length !== expectedCount) {
+      throw new Error(`需要返还 ${expectedCount} 张牌。`);
+    }
+
+    const player = this.requirePlayer(playerId);
+    const returnCards = this.takeCardsFromHand(player, cardIds);
+    player.hand = player.hand.filter((card) => !cardIds.includes(card.id));
+
+    const playerPicks = this.state.tribute.picks.filter((pick) => pick.winnerId === playerId);
+    returnCards.forEach((card, index) => {
+      const targetId = playerPicks[index]?.fromPlayerId ?? this.state.tribute!.capturedPlayerIds[0];
+      const target = this.requirePlayer(targetId);
+      target.hand = sortCards([...target.hand, card]);
+    });
+
+    this.state.tribute.returnedCounts[playerId] = expectedCount;
+    const nextReturner = this.state.tribute.winnerIds.find((id) => {
+      const count = this.state.tribute?.returnCounts[id] ?? 0;
+      const returned = this.state.tribute?.returnedCounts[id] ?? 0;
+      return count > 0 && returned < count;
+    });
+
+    if (nextReturner) {
+      this.state.tribute.currentReturnerId = nextReturner;
+      this.touch();
+      return;
+    }
+
+    const leadPlayerId = this.state.tribute.nextLeadPlayerId;
+    this.state.tribute = undefined;
+    this.state.phase = "playing";
+    this.state.result = undefined;
+    this.state.currentTurn = leadPlayerId && !this.requirePlayer(leadPlayerId).finishRank ? leadPlayerId : this.state.players[0].id;
+    this.state.lastPlay = undefined;
+    this.state.passes = [];
     this.touch();
   }
 
@@ -344,9 +438,12 @@ export class RoomRuntime {
       finishOrder: this.state.finishOrder,
       result: this.state.result,
       leadClaim: this.state.leadClaim,
+      tribute: this.state.tribute,
       canClaimLead:
         this.state.phase === "claimLead" &&
         Boolean(this.state.leadClaim?.candidatePlayerIds.includes(playerId)),
+      canPickTribute: this.state.phase === "tribute" && this.state.tribute?.currentPickerId === playerId,
+      canReturnTribute: this.state.phase === "tribute" && this.state.tribute?.currentReturnerId === playerId,
       createdAt: this.state.createdAt,
       updatedAt: this.state.updatedAt
     };
@@ -383,6 +480,72 @@ export class RoomRuntime {
     }
 
     throw new Error("连续发牌都出现全员红十，请减少副数或增加人数后重试。");
+  }
+
+  private setupTribute(result: GameResult, previousFinishRanks: Map<string, number | undefined>): void {
+    const capturedIds = result.capturedPlayerIds;
+    const capturedIdSet = new Set(capturedIds);
+    const winnerIds = this.state.players
+      .filter((player) => !capturedIdSet.has(player.id))
+      .sort((left, right) => {
+        return (
+          (previousFinishRanks.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+          (previousFinishRanks.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+        );
+      })
+      .map((player) => player.id);
+
+    const pool: TributePick[] = [];
+    for (const playerId of capturedIds) {
+      const player = this.requirePlayer(playerId);
+      const tributeCards = [...player.hand]
+        .sort((left, right) => compareCardsForTribute(right, left))
+        .slice(0, Math.min(2, player.hand.length));
+      const tributeIds = new Set(tributeCards.map((card) => card.id));
+      player.hand = player.hand.filter((card) => !tributeIds.has(card.id));
+      tributeCards.forEach((card) => {
+        pool.push({
+          winnerId: "",
+          fromPlayerId: playerId,
+          card
+        });
+      });
+    }
+
+    pool.sort((left, right) => compareCardsForTribute(right.card, left.card));
+    const leadTribute = [...pool].sort((left, right) => {
+      const cardDiff = compareCardsForTribute(right.card, left.card);
+      if (cardDiff !== 0) return cardDiff;
+      return this.requirePlayer(left.fromPlayerId).seat - this.requirePlayer(right.fromPlayerId).seat;
+    })[0];
+
+    if (pool.length === 0 || winnerIds.length === 0) {
+      this.state.phase = "playing";
+      this.state.currentTurn = leadTribute?.fromPlayerId ?? this.state.players[0].id;
+      return;
+    }
+
+    this.state.phase = "tribute";
+    this.state.currentTurn = undefined;
+    this.state.lastPlay = undefined;
+    this.state.passes = [];
+    this.state.tribute = {
+      winnerIds,
+      capturedPlayerIds: capturedIds,
+      leaderPlayerId: leadTribute?.fromPlayerId,
+      pool,
+      picks: [],
+      returnCounts: {},
+      returnedCounts: {},
+      currentPickerId: winnerIds[0],
+      nextLeadPlayerId: leadTribute?.fromPlayerId
+    };
+  }
+
+  private nextTributeActor(currentPlayerId: string, actorIds: string[]): string {
+    const currentIndex = actorIds.indexOf(currentPlayerId);
+    if (currentIndex < 0) return actorIds[0];
+    return actorIds[(currentIndex + 1) % actorIds.length];
   }
 
   private takeCardsFromHand(player: Player, cardIds: string[]): Card[] {
@@ -601,6 +764,16 @@ export class RoomRuntime {
       this.leadTimer = undefined;
     }
   }
+}
+
+function compareCardsForTribute(left: Card, right: Card): number {
+  const valueDiff = getCardValue(left) - getCardValue(right);
+  if (valueDiff !== 0) return valueDiff;
+  if (left.rank === "JOKER" && right.rank === "JOKER") {
+    if (left.jokerType === right.jokerType) return left.id.localeCompare(right.id);
+    return left.jokerType === "big" ? 1 : -1;
+  }
+  return left.id.localeCompare(right.id);
 }
 
 function cleanNickname(nickname: string): string {
