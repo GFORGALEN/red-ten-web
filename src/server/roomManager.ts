@@ -483,10 +483,10 @@ export class RoomRuntime {
   }
 
   private setupTribute(result: GameResult, previousFinishRanks: Map<string, number | undefined>): void {
-    const capturedIds = result.capturedPlayerIds;
-    const capturedIdSet = new Set(capturedIds);
-    const winnerIds = this.state.players
-      .filter((player) => !capturedIdSet.has(player.id))
+    const originalCapturedIds = result.capturedPlayerIds;
+    const originalCapturedIdSet = new Set(originalCapturedIds);
+    const originalWinnerIds = this.state.players
+      .filter((player) => !originalCapturedIdSet.has(player.id))
       .sort((left, right) => {
         return (
           (previousFinishRanks.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
@@ -494,6 +494,17 @@ export class RoomRuntime {
         );
       })
       .map((player) => player.id);
+    const reverseWinnerIds = originalCapturedIds
+      .filter((playerId) => countJokers(this.requirePlayer(playerId).hand) >= 3)
+      .sort((left, right) => {
+        return (
+          (previousFinishRanks.get(left) ?? Number.MAX_SAFE_INTEGER) -
+          (previousFinishRanks.get(right) ?? Number.MAX_SAFE_INTEGER)
+        );
+      });
+    const isReversed = reverseWinnerIds.length > 0;
+    const capturedIds = isReversed ? originalWinnerIds : originalCapturedIds;
+    const winnerIds = isReversed ? reverseWinnerIds : originalWinnerIds;
 
     const pool: TributePick[] = [];
     for (const playerId of capturedIds) {
@@ -530,6 +541,7 @@ export class RoomRuntime {
     this.state.lastPlay = undefined;
     this.state.passes = [];
     this.state.tribute = {
+      isReversed,
       winnerIds,
       capturedPlayerIds: capturedIds,
       leaderPlayerId: leadTribute?.fromPlayerId,
@@ -774,6 +786,10 @@ function compareCardsForTribute(left: Card, right: Card): number {
     return left.jokerType === "big" ? 1 : -1;
   }
   return left.id.localeCompare(right.id);
+}
+
+function countJokers(cards: Card[]): number {
+  return cards.filter((card) => card.rank === "JOKER").length;
 }
 
 function cleanNickname(nickname: string): string {

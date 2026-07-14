@@ -410,10 +410,10 @@ function Board({
         {room.phase === "playing" && (currentPlayer ? `轮到 ${currentPlayer.nickname}` : "准备下一轮")}
         {room.phase === "tribute" &&
           (tributePicker
-            ? `进贡：${tributePicker.nickname} 选贡牌`
+            ? `${room.tribute?.isReversed ? "反供" : "进贡"}：${tributePicker.nickname} 选贡牌`
             : tributeReturner
-              ? `进贡：${tributeReturner.nickname} 返牌`
-              : "进贡处理中")}
+              ? `${room.tribute?.isReversed ? "反供" : "进贡"}：${tributeReturner.nickname} 返牌`
+              : `${room.tribute?.isReversed ? "反供" : "进贡"}处理中`)}
         {room.phase === "finished" && room.result?.message}
       </div>
 
@@ -423,7 +423,11 @@ function Board({
             <div className="play-caption">
               <span>贡牌池</span>
               <strong>
-                {room.canPickTribute ? "点一张贡牌收入手牌" : room.canReturnTribute ? "从手牌选择返还牌" : "等待其他玩家操作"}
+                {room.canPickTribute
+                  ? `点一张${room.tribute.isReversed ? "反供" : "贡"}牌收入手牌`
+                  : room.canReturnTribute
+                    ? "从手牌选择返还牌"
+                    : "等待其他玩家操作"}
               </strong>
             </div>
             <div className="played-cards tribute-cards">

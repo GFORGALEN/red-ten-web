@@ -81,6 +81,7 @@ export interface TributePick {
 }
 
 export interface TributeState {
+  isReversed: boolean;
   winnerIds: string[];
   capturedPlayerIds: string[];
   leaderPlayerId?: string;
