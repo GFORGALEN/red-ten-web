@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import * as PlayingCards from "@letele/playing-cards";
 import { io, Socket } from "socket.io-client";
 import { analyzePlay, canBeat } from "../shared/rules";
 import { cardShortText, getCardValue, getRankValue, sortCards } from "../shared/cards";
@@ -705,17 +706,32 @@ function Hand({
 function CardFace({ card, compact = false }: { card: Card; compact?: boolean }) {
   const isRed = card.suit === "hearts" || card.suit === "diamonds";
   const isJoker = card.rank === "JOKER";
-  const suit = suitMark(card);
+  const SvgCard = playingCardComponent(card);
 
   return (
     <span className={`card-face ${compact ? "compact" : ""} ${isRed ? "red" : ""} ${isJoker ? "joker" : ""}`}>
-      <span className="card-corner">
-        <b>{isJoker ? (card.jokerType === "big" ? "大" : "小") : card.rank}</b>
-        <i>{isJoker ? "王" : suit}</i>
-      </span>
-      <span className="card-center">{isJoker ? "JOKER" : suit}</span>
+      <SvgCard className="card-svg" aria-hidden="true" focusable="false" />
     </span>
   );
+}
+
+function playingCardComponent(card: Card) {
+  if (card.rank === "JOKER") {
+    return card.jokerType === "big" ? PlayingCards.J2 : PlayingCards.J1;
+  }
+
+  const suitPrefix = {
+    spades: "S",
+    hearts: "H",
+    clubs: "C",
+    diamonds: "D"
+  }[card.suit!];
+  const rankSuffix =
+    card.rank === "A" || card.rank === "J" || card.rank === "Q" || card.rank === "K"
+      ? card.rank.toLowerCase()
+      : card.rank;
+  const componentName = `${suitPrefix}${rankSuffix}` as keyof typeof PlayingCards;
+  return PlayingCards[componentName];
 }
 
 function CopyLinkButton({ roomId }: { roomId: string }) {
