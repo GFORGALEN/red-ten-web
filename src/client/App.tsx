@@ -27,9 +27,7 @@ export function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
-  const [dockCollapsed, setDockCollapsed] = useState(() => {
-    return window.matchMedia("(orientation: landscape) and (max-height: 560px)").matches;
-  });
+  const [dockCollapsed, setDockCollapsed] = useState(false);
 
   useEffect(() => {
     const nextSocket: TypedSocket = io();
