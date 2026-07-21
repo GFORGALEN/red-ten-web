@@ -99,6 +99,13 @@ export interface LeadClaimState {
   deadline: number;
 }
 
+export interface TurnTimerState {
+  playerId: string;
+  startedAt: number;
+  warnAt: number;
+  deadline: number;
+}
+
 export interface GameState {
   roomId: string;
   options: RoomOptions;
@@ -106,6 +113,7 @@ export interface GameState {
   hostId: string;
   players: Player[];
   currentTurn?: string;
+  turnTimer?: TurnTimerState;
   lastPlay?: PublicPlay;
   passes: string[];
   finishOrder: string[];
@@ -138,6 +146,7 @@ export interface RoomView {
   selfHand: Card[];
   players: PlayerView[];
   currentTurn?: string;
+  turnTimer?: TurnTimerState;
   lastPlay?: PublicPlay;
   passes: string[];
   finishOrder: string[];

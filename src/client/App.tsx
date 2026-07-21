@@ -400,10 +400,16 @@ function Board({
   const currentPlayer = room.players.find((player) => player.id === room.currentTurn);
   const tributePicker = room.players.find((player) => player.id === room.tribute?.currentPickerId);
   const tributeReturner = room.players.find((player) => player.id === room.tribute?.currentReturnerId);
+  const turnTimer = room.turnTimer?.playerId === room.currentTurn ? room.turnTimer : undefined;
+  const secondsLeft = turnTimer ? Math.max(0, Math.ceil((turnTimer.deadline - now) / 1000)) : undefined;
+  const isFinalWarning = turnTimer ? now >= turnTimer.warnAt : false;
+  const timerProgress = turnTimer
+    ? Math.max(0, Math.min(1, (turnTimer.deadline - now) / (turnTimer.deadline - turnTimer.startedAt)))
+    : 0;
 
   return (
     <div className="table-stage">
-      <div className="turn-banner">
+      <div className={`turn-banner ${isFinalWarning ? "final-warning" : ""}`}>
         {room.phase === "lobby" && "等待玩家入座"}
         {room.phase === "claimLead" && `等待红桃3首出确认${deadlineText(room.leadClaim?.deadline, now)}`}
         {room.phase === "playing" && (currentPlayer ? `轮到 ${currentPlayer.nickname}` : "准备下一轮")}
@@ -415,6 +421,13 @@ function Board({
               : `${room.tribute?.isReversed ? "反供" : "进贡"}处理中`)}
         {room.phase === "finished" && room.result?.message}
       </div>
+      {room.phase === "playing" && turnTimer && (
+        <div className={`turn-clock ${isFinalWarning ? "final-warning" : ""}`}>
+          <span>{isFinalWarning ? "最后 5 秒" : "思考中"}</span>
+          <strong>{secondsLeft}s</strong>
+          <i style={{ transform: `scaleX(${timerProgress})` }} />
+        </div>
+      )}
 
       <div className="last-play-stage">
         {room.phase === "tribute" && room.tribute ? (
@@ -741,11 +754,23 @@ function Hand({
 function CardFace({ card, compact = false }: { card: Card; compact?: boolean }) {
   const isRed = card.suit === "hearts" || card.suit === "diamonds";
   const isJoker = card.rank === "JOKER";
-  const SvgCard = playingCardComponent(card);
+  const SvgCard = isJoker ? undefined : playingCardComponent(card);
 
   return (
-    <span className={`card-face ${compact ? "compact" : ""} ${isRed ? "red" : ""} ${isJoker ? "joker" : ""}`}>
-      <SvgCard className="card-svg" aria-hidden="true" focusable="false" />
+    <span
+      className={`card-face ${compact ? "compact" : ""} ${isRed ? "red" : ""} ${
+        isJoker ? `joker ${card.jokerType === "big" ? "big-joker" : "small-joker"}` : ""
+      }`}
+    >
+      {isJoker ? (
+        <span className="joker-card" aria-hidden="true">
+          <span className="joker-title">{card.jokerType === "big" ? "大王" : "小王"}</span>
+          <span className="joker-mark">{card.jokerType === "big" ? "★" : "◆"}</span>
+          <span className="joker-word">JOKER</span>
+        </span>
+      ) : (
+        SvgCard && <SvgCard className="card-svg" aria-hidden="true" focusable="false" />
+      )}
     </span>
   );
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildDeck } from "../src/shared/cards";
 import { RoomRuntime } from "../src/server/roomManager";
 import type { Card } from "../src/shared/types";
@@ -326,5 +326,107 @@ describe("room finish timing", () => {
 
     expect(red.isRevealed).toBe(true);
     expect(room.state.phase).toBe("playing");
+  });
+
+  it("creates a 10 second plus 5 second turn timer when play starts", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+
+    const room = new RoomRuntime(
+      "TEST9",
+      { playerCount: 3, deckCount: 2 },
+      { id: "lead", nickname: "lead" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("n1", "n1");
+    room.join("n2", "n2");
+    (room as unknown as { dealCards: () => void }).dealCards = () => {
+      const lead = room.state.players.find((player) => player.id === "lead")!;
+      const n1 = room.state.players.find((player) => player.id === "n1")!;
+      const n2 = room.state.players.find((player) => player.id === "n2")!;
+      lead.hand = [card("1-hearts-3"), card("1-hearts-10")];
+      lead.isRedTeam = true;
+      n1.hand = [card("1-spades-4")];
+      n1.isRedTeam = false;
+      n2.hand = [card("1-clubs-4")];
+      n2.isRedTeam = false;
+    };
+
+    room.start("lead");
+
+    expect(room.state.currentTurn).toBe("lead");
+    expect(room.state.turnTimer).toEqual({
+      playerId: "lead",
+      startedAt: 1_000_000,
+      warnAt: 1_010_000,
+      deadline: 1_015_000
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("auto-passes on timeout when responding to an existing play", () => {
+    const room = new RoomRuntime(
+      "TEST10",
+      { playerCount: 3, deckCount: 2 },
+      { id: "p1", nickname: "p1" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("p2", "p2");
+    room.join("p3", "p3");
+    const p1 = room.state.players.find((player) => player.id === "p1")!;
+    const p2 = room.state.players.find((player) => player.id === "p2")!;
+    const p3 = room.state.players.find((player) => player.id === "p3")!;
+    p1.hand = [card("1-spades-3"), card("1-hearts-10")];
+    p2.hand = [card("1-spades-4")];
+    p3.hand = [card("1-clubs-4")];
+    p1.isRedTeam = true;
+    p2.isRedTeam = false;
+    p3.isRedTeam = false;
+    room.state.phase = "playing";
+    room.state.currentTurn = "p1";
+
+    room.playCards("p1", [card("1-spades-3").id]);
+    expect(room.state.currentTurn).toBe("p2");
+
+    (room as unknown as { handleTurnTimeout: (playerId: string) => void }).handleTurnTimeout("p2");
+
+    expect(room.state.passes).toEqual(["p2"]);
+    expect(room.state.currentTurn).toBe("p3");
+  });
+
+  it("auto-leads the smallest single on timeout when a player cannot pass", () => {
+    const room = new RoomRuntime(
+      "TEST11",
+      { playerCount: 3, deckCount: 2 },
+      { id: "p1", nickname: "p1" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("p2", "p2");
+    room.join("p3", "p3");
+    const p1 = room.state.players.find((player) => player.id === "p1")!;
+    const p2 = room.state.players.find((player) => player.id === "p2")!;
+    const p3 = room.state.players.find((player) => player.id === "p3")!;
+    p1.hand = [card("1-clubs-4"), card("1-spades-3")];
+    p2.hand = [card("1-spades-5")];
+    p3.hand = [card("1-clubs-5")];
+    p1.isRedTeam = false;
+    p2.isRedTeam = true;
+    p3.isRedTeam = false;
+    room.state.phase = "playing";
+    room.state.currentTurn = "p1";
+
+    (room as unknown as { handleTurnTimeout: (playerId: string) => void }).handleTurnTimeout("p1");
+
+    expect(room.state.lastPlay?.playerId).toBe("p1");
+    expect(room.state.lastPlay?.cards.map((item) => item.id)).toEqual(["1-spades-3"]);
+    expect(p1.hand.map((item) => item.id)).toEqual(["1-clubs-4"]);
+    expect(room.state.currentTurn).toBe("p2");
   });
 });

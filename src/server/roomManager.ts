@@ -22,6 +22,8 @@ import type {
 
 const ROOM_TTL_MS = 30 * 60 * 1000;
 const LEAD_CLAIM_MS = 10 * 1000;
+const TURN_THINK_MS = 10 * 1000;
+const TURN_FINAL_MS = 5 * 1000;
 
 export class RoomManager {
   private readonly rooms = new Map<string, RoomRuntime>();
@@ -77,6 +79,7 @@ export class RoomRuntime {
   private readonly connectedPlayerIds = new Set<string>();
   private cleanupTimer?: NodeJS.Timeout;
   private leadTimer?: NodeJS.Timeout;
+  private turnTimer?: NodeJS.Timeout;
 
   constructor(
     roomId: string,
@@ -180,10 +183,12 @@ export class RoomRuntime {
     const previousResult = this.state.result;
     const previousFinishRanks = new Map(this.state.players.map((player) => [player.id, player.finishRank]));
     this.clearLeadTimer();
+    this.clearTurnTimer();
     this.resetPlayersForNewGame();
     this.dealCards();
     this.state.phase = "playing";
     this.state.currentTurn = undefined;
+    this.state.turnTimer = undefined;
     this.state.lastPlay = undefined;
     this.state.passes = [];
     this.state.finishOrder = [];
@@ -214,7 +219,7 @@ export class RoomRuntime {
       this.leadTimer = setTimeout(() => this.resolveLeadBySeat(), LEAD_CLAIM_MS);
     } else {
       this.state.phase = "playing";
-      this.state.currentTurn = (heartThreeCandidates[0] ?? this.state.players[0]).id;
+      this.setTurnPlayer((heartThreeCandidates[0] ?? this.state.players[0]).id);
     }
   }
 
@@ -313,7 +318,7 @@ export class RoomRuntime {
     this.state.tribute = undefined;
     this.state.phase = "playing";
     this.state.result = undefined;
-    this.state.currentTurn = leadPlayerId && !this.requirePlayer(leadPlayerId).finishRank ? leadPlayerId : this.state.players[0].id;
+    this.setTurnPlayer(leadPlayerId && !this.requirePlayer(leadPlayerId).finishRank ? leadPlayerId : this.state.players[0].id);
     this.state.lastPlay = undefined;
     this.state.passes = [];
     this.touch();
@@ -366,7 +371,7 @@ export class RoomRuntime {
 
     const responder = this.nextResponderAfter(player.seat, playerId);
     if (responder) {
-      this.state.currentTurn = responder.id;
+      this.setTurnPlayer(responder.id);
     } else {
       this.finishTrickAndLead(publicPlay);
     }
@@ -400,7 +405,7 @@ export class RoomRuntime {
       this.finishTrickAndLead(this.state.lastPlay);
     } else {
       const next = this.nextResponderAfter(this.requirePlayer(playerId).seat, this.state.lastPlay.playerId);
-      this.state.currentTurn = (next ?? responders[0]).id;
+      this.setTurnPlayer((next ?? responders[0]).id);
     }
 
     this.touch();
@@ -433,6 +438,7 @@ export class RoomRuntime {
         };
       }),
       currentTurn: this.state.currentTurn,
+      turnTimer: this.state.turnTimer,
       lastPlay: this.state.lastPlay,
       passes: this.state.passes,
       finishOrder: this.state.finishOrder,
@@ -532,11 +538,12 @@ export class RoomRuntime {
 
     if (pool.length === 0 || winnerIds.length === 0) {
       this.state.phase = "playing";
-      this.state.currentTurn = leadTribute?.fromPlayerId ?? this.state.players[0].id;
+      this.setTurnPlayer(leadTribute?.fromPlayerId ?? this.state.players[0].id);
       return;
     }
 
     this.state.phase = "tribute";
+    this.clearTurnTimer();
     this.state.currentTurn = undefined;
     this.state.lastPlay = undefined;
     this.state.passes = [];
@@ -588,7 +595,7 @@ export class RoomRuntime {
   private setLeadPlayer(playerId: string): void {
     this.clearLeadTimer();
     this.state.phase = "playing";
-    this.state.currentTurn = playerId;
+    this.setTurnPlayer(playerId);
     this.state.leadClaim = undefined;
     this.touch();
   }
@@ -621,6 +628,7 @@ export class RoomRuntime {
 
   private finishGame(result: GameResult): void {
     this.clearLeadTimer();
+    this.clearTurnTimer();
     this.state.phase = "finished";
     this.state.currentTurn = undefined;
     this.state.passes = [];
@@ -718,7 +726,12 @@ export class RoomRuntime {
 
     this.state.lastPlay = undefined;
     this.state.passes = [];
-    this.state.currentTurn = nextLeader?.id;
+    if (nextLeader) {
+      this.setTurnPlayer(nextLeader.id);
+    } else {
+      this.clearTurnTimer();
+      this.state.currentTurn = undefined;
+    }
   }
 
   private nextResponderAfter(seat: number, lastPlayerId: string): Player | undefined {
@@ -746,6 +759,50 @@ export class RoomRuntime {
     return later ?? activePlayers[0];
   }
 
+  private setTurnPlayer(playerId: string): void {
+    this.clearTurnTimer();
+    const player = this.requirePlayer(playerId);
+    if (this.state.phase !== "playing" || player.finishRank) {
+      this.state.currentTurn = undefined;
+      this.state.turnTimer = undefined;
+      return;
+    }
+
+    const startedAt = Date.now();
+    this.state.currentTurn = playerId;
+    this.state.turnTimer = {
+      playerId,
+      startedAt,
+      warnAt: startedAt + TURN_THINK_MS,
+      deadline: startedAt + TURN_THINK_MS + TURN_FINAL_MS
+    };
+    this.turnTimer = setTimeout(() => this.handleTurnTimeout(playerId), TURN_THINK_MS + TURN_FINAL_MS);
+    this.turnTimer.unref?.();
+  }
+
+  private handleTurnTimeout(playerId: string): void {
+    if (this.state.phase !== "playing" || this.state.currentTurn !== playerId) return;
+
+    try {
+      const player = this.requirePlayer(playerId);
+      const mustLead = !this.state.lastPlay || this.state.lastPlay.playerId === playerId;
+      if (mustLead) {
+        const [smallestCard] = sortCards(player.hand);
+        if (!smallestCard) return;
+        this.playCards(playerId, [smallestCard.id]);
+      } else {
+        this.pass(playerId);
+      }
+      this.notifyChange();
+    } catch {
+      this.clearTurnTimer();
+      this.state.currentTurn = undefined;
+      this.state.turnTimer = undefined;
+      this.touch();
+      this.notifyChange();
+    }
+  }
+
   private requirePlayer(playerId: string): Player {
     const player = this.state.players.find((item) => item.id === playerId);
     if (!player) {
@@ -764,6 +821,7 @@ export class RoomRuntime {
 
   private clearTimers(): void {
     this.clearLeadTimer();
+    this.clearTurnTimer();
     if (this.cleanupTimer) {
       clearTimeout(this.cleanupTimer);
       this.cleanupTimer = undefined;
@@ -775,6 +833,14 @@ export class RoomRuntime {
       clearTimeout(this.leadTimer);
       this.leadTimer = undefined;
     }
+  }
+
+  private clearTurnTimer(): void {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = undefined;
+    }
+    this.state.turnTimer = undefined;
   }
 }
 
