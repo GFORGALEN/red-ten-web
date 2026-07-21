@@ -670,9 +670,7 @@ export class RoomRuntime {
     }
 
     const redIds = new Set(redPlayers.map((player) => player.id));
-    const normalIds = new Set(normalPlayers.map((player) => player.id));
     const finishedTopForRed = rankedFinished.slice(0, redPlayers.length);
-    const finishedTopForNormal = rankedFinished.slice(0, normalPlayers.length);
 
     if (
       finishedTopForRed.length >= redPlayers.length &&
@@ -686,32 +684,8 @@ export class RoomRuntime {
       };
     }
 
-    if (
-      finishedTopForNormal.length >= normalPlayers.length &&
-      finishedTopForNormal.every((player) => normalIds.has(player.id))
-    ) {
-      return {
-        outcome: "normal_capture",
-        winner: "normal",
-        message: "普通方包揽前几名，红十方被抓。",
-        capturedPlayerIds: redPlayers.map((player) => player.id)
-      };
-    }
-
-    const redCanStillTakeTop = rankedFinished
-      .slice(0, redPlayers.length)
-      .every((player) => redIds.has(player.id));
-    const normalCanStillTakeTop = rankedFinished
-      .slice(0, normalPlayers.length)
-      .every((player) => normalIds.has(player.id));
-
-    if (!redCanStillTakeTop && !normalCanStillTakeTop) {
-      return {
-        outcome: "draw",
-        winner: "none",
-        message: "双方名次交错，本局平局。",
-        capturedPlayerIds: []
-      };
+    if (this.state.players.every((player) => player.finishRank)) {
+      return calculateResult(this.state.players);
     }
 
     return undefined;

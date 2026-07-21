@@ -106,9 +106,7 @@ export function calculateResult(players: Player[]): GameResult {
   }
 
   const topSlice = rankedPlayers.slice(0, redPlayers.length);
-  const bottomSlice = rankedPlayers.slice(-redPlayers.length);
   const redTookTop = topSlice.every((player) => redIds.has(player.id));
-  const redTookBottom = bottomSlice.every((player) => redIds.has(player.id));
 
   if (redTookTop) {
     return {
@@ -119,12 +117,19 @@ export function calculateResult(players: Player[]): GameResult {
     };
   }
 
-  if (redTookBottom) {
+  const trailingRedPlayers: Player[] = [];
+  for (let index = rankedPlayers.length - 1; index >= 0; index -= 1) {
+    const player = rankedPlayers[index];
+    if (!redIds.has(player.id)) break;
+    trailingRedPlayers.unshift(player);
+  }
+
+  if (!redIds.has(rankedPlayers[0].id) && trailingRedPlayers.length > 0) {
     return {
       outcome: "normal_capture",
       winner: "normal",
-      message: "红十方全部垫底，红十方被抓。",
-      capturedPlayerIds: redPlayers.map((player) => player.id)
+      message: "最后出完的是红十，普通方抓到末尾红十。",
+      capturedPlayerIds: trailingRedPlayers.map((player) => player.id)
     };
   }
 

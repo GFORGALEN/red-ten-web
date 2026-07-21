@@ -175,12 +175,23 @@ describe("result calculation", () => {
     expect(result.outcome).toBe("normal_capture");
   });
 
-  it("draws on mixed rankings", () => {
+  it("captures trailing red-ten players when the last finisher is red", () => {
     const result = calculateResult([
       p("n1", false, 1),
       p("r1", true, 2),
       p("n2", false, 3),
       p("r2", true, 4)
+    ]);
+    expect(result.outcome).toBe("normal_capture");
+    expect(result.capturedPlayerIds).toEqual(["r2"]);
+  });
+
+  it("draws when red-ten players are mixed but the last finisher is normal", () => {
+    const result = calculateResult([
+      p("n1", false, 1),
+      p("r1", true, 2),
+      p("r2", true, 3),
+      p("n2", false, 4)
     ]);
     expect(result.outcome).toBe("draw");
   });

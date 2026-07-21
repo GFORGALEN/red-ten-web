@@ -181,7 +181,7 @@ describe("room finish timing", () => {
     expect(room.state.result?.capturedPlayerIds).toEqual(["n1", "n2"]);
   });
 
-  it("finishes immediately when normal players take the top ranks against multiple red-ten players", () => {
+  it("waits for the last ranks before normal players capture trailing red-ten players", () => {
     const room = new RoomRuntime(
       "TEST5",
       { playerCount: 4, deckCount: 2 },
@@ -205,18 +205,142 @@ describe("room finish timing", () => {
     room.state.finishOrder = ["n1"];
     n2.hand = [card("1-spades-3")];
     n2.isRedTeam = false;
-    r1.hand = [card("1-clubs-3")];
+    r1.hand = [card("1-spades-4")];
     r1.isRedTeam = true;
-    r2.hand = [card("1-diamonds-3")];
+    r2.hand = [card("1-spades-5")];
     r2.isRedTeam = true;
     room.state.phase = "playing";
     room.state.currentTurn = "n2";
 
     room.playCards("n2", n2.hand.map((item) => item.id));
 
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.result).toBeUndefined();
+    expect(room.state.currentTurn).toBe("r1");
+
+    room.playCards("r1", r1.hand.map((item) => item.id));
+
     expect(room.state.phase).toBe("finished");
     expect(room.state.result?.outcome).toBe("normal_capture");
     expect(room.state.result?.capturedPlayerIds).toEqual(["r1", "r2"]);
+  });
+
+  it("does not finish when a normal player is first and a red-ten player is second", () => {
+    const room = new RoomRuntime(
+      "TEST5B",
+      { playerCount: 4, deckCount: 2 },
+      { id: "n1", nickname: "n1" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("r1", "r1");
+    room.join("n2", "n2");
+    room.join("r2", "r2");
+
+    const n1 = room.state.players.find((player) => player.id === "n1")!;
+    const r1 = room.state.players.find((player) => player.id === "r1")!;
+    const n2 = room.state.players.find((player) => player.id === "n2")!;
+    const r2 = room.state.players.find((player) => player.id === "r2")!;
+
+    n1.hand = [];
+    n1.isRedTeam = false;
+    n1.finishRank = 1;
+    room.state.finishOrder = ["n1"];
+    r1.hand = [card("1-spades-3")];
+    r1.isRedTeam = true;
+    n2.hand = [card("1-spades-4")];
+    n2.isRedTeam = false;
+    r2.hand = [card("1-spades-5")];
+    r2.isRedTeam = true;
+    room.state.phase = "playing";
+    room.state.currentTurn = "r1";
+
+    room.playCards("r1", r1.hand.map((item) => item.id));
+
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.result).toBeUndefined();
+    expect(room.state.currentTurn).toBe("n2");
+  });
+
+  it("draws when the third finisher is the remaining red-ten player", () => {
+    const room = new RoomRuntime(
+      "TEST5C",
+      { playerCount: 4, deckCount: 2 },
+      { id: "n1", nickname: "n1" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("r1", "r1");
+    room.join("n2", "n2");
+    room.join("r2", "r2");
+
+    const n1 = room.state.players.find((player) => player.id === "n1")!;
+    const r1 = room.state.players.find((player) => player.id === "r1")!;
+    const n2 = room.state.players.find((player) => player.id === "n2")!;
+    const r2 = room.state.players.find((player) => player.id === "r2")!;
+
+    n1.hand = [];
+    n1.isRedTeam = false;
+    n1.finishRank = 1;
+    room.state.finishOrder = ["n1"];
+    r1.hand = [card("1-spades-3")];
+    r1.isRedTeam = true;
+    n2.hand = [card("1-spades-5")];
+    n2.isRedTeam = false;
+    r2.hand = [card("1-spades-4")];
+    r2.isRedTeam = true;
+    room.state.phase = "playing";
+    room.state.currentTurn = "r1";
+
+    room.playCards("r1", r1.hand.map((item) => item.id));
+    room.pass("n2");
+    room.playCards("r2", r2.hand.map((item) => item.id));
+
+    expect(room.state.phase).toBe("finished");
+    expect(room.state.result?.outcome).toBe("draw");
+    expect(room.state.finishOrder).toEqual(["n1", "r1", "r2", "n2"]);
+  });
+
+  it("captures the trailing red-ten player when the last finisher is red", () => {
+    const room = new RoomRuntime(
+      "TEST5D",
+      { playerCount: 4, deckCount: 2 },
+      { id: "n1", nickname: "n1" },
+      () => undefined,
+      () => undefined
+    );
+
+    room.join("r1", "r1");
+    room.join("n2", "n2");
+    room.join("r2", "r2");
+
+    const n1 = room.state.players.find((player) => player.id === "n1")!;
+    const r1 = room.state.players.find((player) => player.id === "r1")!;
+    const n2 = room.state.players.find((player) => player.id === "n2")!;
+    const r2 = room.state.players.find((player) => player.id === "r2")!;
+
+    n1.hand = [];
+    n1.isRedTeam = false;
+    n1.finishRank = 1;
+    room.state.finishOrder = ["n1"];
+    r1.hand = [card("1-spades-3")];
+    r1.isRedTeam = true;
+    n2.hand = [card("1-spades-4")];
+    n2.isRedTeam = false;
+    r2.hand = [card("1-spades-5")];
+    r2.isRedTeam = true;
+    room.state.phase = "playing";
+    room.state.currentTurn = "r1";
+
+    room.playCards("r1", r1.hand.map((item) => item.id));
+    room.playCards("n2", n2.hand.map((item) => item.id));
+
+    expect(room.state.phase).toBe("finished");
+    expect(room.state.result?.outcome).toBe("normal_capture");
+    expect(room.state.result?.capturedPlayerIds).toEqual(["r2"]);
+    expect(room.state.finishOrder).toEqual(["n1", "r1", "n2", "r2"]);
   });
 
   it("passes the lead to the next unfinished player when the last-play player is out", () => {
