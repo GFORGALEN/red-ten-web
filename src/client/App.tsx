@@ -610,6 +610,11 @@ function Hand({
     lastIndex: number;
     shouldSelect: boolean;
     baseSelection: Set<string>;
+    startX: number;
+    startY: number;
+    timerId: number;
+    isSelecting: boolean;
+    didMove: boolean;
   } | null>(null);
 
   function cardIndexFromPoint(clientX: number, clientY: number): number | null {
@@ -646,28 +651,60 @@ function Hand({
     if (event.pointerType === "mouse" && event.button !== 0) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
     dragRef.current = {
       startIndex: index,
       lastIndex: index,
       shouldSelect: !selectedIds.includes(cards[index].id),
-      baseSelection: new Set(selectedIds)
+      baseSelection: new Set(selectedIds),
+      startX: event.clientX,
+      startY: event.clientY,
+      timerId: window.setTimeout(() => {
+        const drag = dragRef.current;
+        if (!drag || drag.didMove) return;
+        drag.isSelecting = true;
+        applyDragSelection(drag.startIndex);
+      }, 180),
+      isSelecting: event.pointerType === "mouse",
+      didMove: false
     };
-    applyDragSelection(index);
+    if (event.pointerType === "mouse") {
+      event.preventDefault();
+      applyDragSelection(index);
+    }
   }
 
   function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
-    if (!dragRef.current) return;
-    event.preventDefault();
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const distanceX = Math.abs(event.clientX - drag.startX);
+    const distanceY = Math.abs(event.clientY - drag.startY);
+    if (distanceX > 7 || distanceY > 7) {
+      drag.didMove = true;
+    }
+
+    if (!drag.isSelecting) {
+      if (drag.didMove) {
+        window.clearTimeout(drag.timerId);
+      }
+      return;
+    }
 
     const index = cardIndexFromPoint(event.clientX, event.clientY);
-    if (index === null || index === dragRef.current.lastIndex) return;
+    if (index === null || index === drag.lastIndex) return;
+    event.preventDefault();
     applyDragSelection(index);
   }
 
   function handlePointerUp(event: PointerEvent<HTMLButtonElement>) {
-    if (!dragRef.current) return;
-    event.preventDefault();
+    const drag = dragRef.current;
+    if (!drag) return;
+    window.clearTimeout(drag.timerId);
+    if (drag.isSelecting) {
+      event.preventDefault();
+    } else if (!drag.didMove) {
+      onToggle(cards[drag.startIndex].id);
+    }
     dragRef.current = null;
   }
 

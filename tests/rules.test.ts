@@ -99,6 +99,40 @@ describe("play analysis", () => {
     expect(canBeat(longStraight, shortStraight)).toBe(false);
     expect(canBeat(higherStraight, shortStraight)).toBe(true);
   });
+
+  it("requires at least a five-card bomb to beat a triple sequence", () => {
+    const tripleSequence = analyzePlay([
+      c("1-spades-3"),
+      c("1-hearts-3"),
+      c("1-clubs-3"),
+      c("1-spades-4"),
+      c("1-hearts-4"),
+      c("1-clubs-4"),
+      c("1-spades-5"),
+      c("1-hearts-5"),
+      c("1-clubs-5")
+    ]);
+    const tripleBomb = analyzePlay([c("1-spades-9"), c("1-hearts-9"), c("1-clubs-9")]);
+    const fourBomb = analyzePlay([
+      c("1-spades-9"),
+      c("1-hearts-9"),
+      c("1-clubs-9"),
+      c("1-diamonds-9")
+    ]);
+    const fiveBomb = analyzePlay([
+      c("1-spades-10"),
+      c("1-hearts-10"),
+      c("1-clubs-10"),
+      c("1-diamonds-10"),
+      c("2-spades-10")
+    ]);
+    const tripleJoker = analyzePlay([c("1-joker-small"), c("1-joker-big"), c("2-joker-small")]);
+
+    expect(canBeat(tripleBomb, tripleSequence)).toBe(false);
+    expect(canBeat(fourBomb, tripleSequence)).toBe(false);
+    expect(canBeat(fiveBomb, tripleSequence)).toBe(true);
+    expect(canBeat(tripleJoker, tripleSequence)).toBe(true);
+  });
 });
 
 describe("result calculation", () => {

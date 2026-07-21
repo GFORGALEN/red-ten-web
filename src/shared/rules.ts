@@ -53,6 +53,7 @@ export function canBeat(candidate: Play, current?: Play): boolean {
   if (!current) return true;
 
   if (candidate.type === "bomb") {
+    if (current.type === "triple_sequence" && (candidate.bombPower ?? 0) < 5) return false;
     if (current.type !== "bomb") return true;
     return compareBomb(candidate, current) > 0;
   }
