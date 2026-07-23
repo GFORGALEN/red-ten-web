@@ -38,10 +38,8 @@ button {
 .app-shell {
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(142, 205, 232, 0.92) 0%, rgba(213, 236, 231, 0.88) 18%, transparent 19%),
-    linear-gradient(140deg, rgba(166, 28, 42, 0.34), transparent 22%),
-    linear-gradient(220deg, rgba(214, 153, 48, 0.3), transparent 24%),
-    radial-gradient(ellipse at 50% 54%, rgba(24, 118, 102, 0.95), rgba(11, 69, 64, 0.96) 48%, #071d2a 100%);
+    linear-gradient(180deg, rgba(11, 22, 37, 0.55) 0%, transparent 22%, rgba(6, 12, 20, 0.5) 100%),
+    linear-gradient(180deg, #87bde0 0%, #f4c878 28%, #1f3d4e 29%, #071725 100%);
   overflow: hidden;
 }
 
@@ -51,11 +49,10 @@ button {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(255, 240, 195, 0.08) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 240, 195, 0.06) 1px, transparent 1px),
-    radial-gradient(ellipse at 50% 34%, rgba(255, 214, 91, 0.22), transparent 40%);
-  background-size: 52px 52px, 52px 52px, auto;
-  opacity: 0.72;
+    radial-gradient(ellipse at 50% 24%, rgba(255, 238, 184, 0.6), transparent 30%),
+    linear-gradient(90deg, rgba(5, 18, 27, 0.94) 0 6%, transparent 14% 86%, rgba(5, 18, 27, 0.94) 94% 100%),
+    linear-gradient(180deg, transparent 0 28%, rgba(2, 10, 18, 0.42) 28% 100%);
+  opacity: 1;
 }
 
 .home-panel {
@@ -182,7 +179,7 @@ input {
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 100vh;
   position: relative;
-  padding: 10px 12px 0;
+  padding: 10px 14px 0;
 }
 
 .game-topbar {
@@ -219,21 +216,62 @@ input {
 }
 
 .arena {
+  position: relative;
   display: grid;
-  grid-template-rows: auto minmax(250px, 1fr);
-  gap: 8px;
-  max-width: 1240px;
+  grid-template-rows: auto auto minmax(250px, 1fr);
+  gap: 7px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 0;
+  padding: 6px 0;
+}
+
+.card-count-strip {
+  justify-self: center;
+  display: grid;
+  width: min(620px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(107, 65, 36, 0.46);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 246, 231, 0.96), rgba(238, 211, 181, 0.95));
+  color: #3b2419;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.count-row {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(28px, 1fr));
+}
+
+.count-row span,
+.count-row strong {
+  display: grid;
+  min-height: 25px;
+  place-items: center;
+  border-right: 1px solid rgba(105, 65, 38, 0.22);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.count-row span:last-child,
+.count-row strong:last-child {
+  border-right: 0;
+}
+
+.count-row.counts {
+  border-top: 1px solid rgba(105, 65, 38, 0.2);
+}
+
+.count-row.counts strong {
+  color: #bd5724;
 }
 
 .opponent-rail {
   display: grid;
-  grid-template-columns: repeat(var(--opponent-count), minmax(138px, 1fr));
+  grid-template-columns: repeat(var(--opponent-count), minmax(146px, 1fr));
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 6px;
+  padding: 2px 2px 4px;
   scrollbar-width: none;
 }
 
@@ -249,14 +287,15 @@ input {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
-  min-height: 64px;
-  border: 1px solid rgba(255, 226, 151, 0.36);
-  border-radius: 8px;
-  padding: 8px;
-  background: linear-gradient(180deg, rgba(18, 78, 98, 0.9), rgba(9, 43, 56, 0.88));
+  min-height: 58px;
+  border: 1px solid rgba(229, 182, 97, 0.38);
+  border-radius: 10px;
+  padding: 7px 9px;
+  background: linear-gradient(180deg, rgba(24, 35, 43, 0.74), rgba(10, 20, 30, 0.84));
+  backdrop-filter: blur(8px);
   box-shadow:
-    inset 0 0 18px rgba(255, 226, 151, 0.08),
-    0 8px 18px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
 .player-badge.current {
@@ -280,15 +319,16 @@ input {
 
 .avatar {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border: 2px solid #ffe297;
+  border: 2px solid rgba(255, 219, 132, 0.92);
   border-radius: 50%;
-  background: linear-gradient(180deg, #f7c05a, #a34e18);
+  background: radial-gradient(circle at 35% 24%, #ffebaa, #d4942c 56%, #8d4217 100%);
   color: #fff8df;
   font-weight: 950;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .avatar.self {
@@ -350,28 +390,27 @@ input {
   position: relative;
   display: grid;
   align-content: center;
-  gap: 14px;
-  min-height: 360px;
-  border: 2px solid rgba(255, 239, 174, 0.68);
-  border-radius: 50% / 18%;
-  padding: 28px min(6vw, 64px);
+  gap: 12px;
+  min-height: 390px;
+  border: 3px solid rgba(255, 223, 141, 0.86);
+  border-radius: 50% / 22%;
+  padding: 30px min(7vw, 86px);
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 35%, rgba(255, 230, 151, 0.96), rgba(211, 136, 47, 0.88) 42%, rgba(93, 42, 16, 0.72) 86%),
-    linear-gradient(180deg, rgba(255, 210, 109, 0.98), rgba(174, 91, 29, 0.98)),
-    #ad672d;
+    radial-gradient(ellipse at 50% 28%, rgba(255, 226, 148, 0.98), rgba(225, 157, 67, 0.96) 42%, rgba(154, 79, 26, 0.96) 86%),
+    #b76525;
   box-shadow:
-    inset 0 18px 34px rgba(255, 241, 194, 0.3),
-    inset 0 -20px 42px rgba(60, 25, 7, 0.28),
-    0 18px 50px rgba(0, 0, 0, 0.32);
+    inset 0 20px 42px rgba(255, 241, 194, 0.38),
+    inset 0 -28px 48px rgba(67, 30, 9, 0.38),
+    0 20px 54px rgba(0, 0, 0, 0.42);
 }
 
 .table-stage::before {
   content: "";
   position: absolute;
-  inset: 16px 24px;
-  border: 1px solid rgba(255, 245, 210, 0.35);
-  border-radius: 50% / 18%;
+  inset: 18px 30px;
+  border: 1px solid rgba(255, 245, 210, 0.34);
+  border-radius: 50% / 21%;
   pointer-events: none;
 }
 
@@ -536,12 +575,17 @@ input {
   bottom: 0;
   z-index: 20;
   display: grid;
-  gap: 8px;
-  max-width: 1240px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "self actions"
+    "hand hand";
+  align-items: end;
+  gap: 5px 12px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(6, 37, 52, 0), rgba(6, 37, 52, 0.98) 24%);
+  padding: 4px 0 max(8px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(5, 14, 23, 0), rgba(5, 14, 23, 0.88) 22%, rgba(5, 14, 23, 0.98) 100%);
 }
 
 .bottom-dock.collapsed {
@@ -551,9 +595,10 @@ input {
 }
 
 .dock-head {
+  grid-area: self;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   min-height: 30px;
 }
@@ -563,6 +608,7 @@ input {
 }
 
 .dock-toggle {
+  display: none;
   min-height: 30px;
   border: 1px solid rgba(255, 226, 151, 0.52);
   border-radius: 999px;
@@ -605,16 +651,20 @@ input {
 }
 
 .self-strip {
+  grid-area: self;
   width: min(360px, 100%);
-  min-height: 60px;
+  min-height: 52px;
   justify-self: start;
 }
 
 .action-bar {
+  grid-area: actions;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .bottom-dock.collapsed .action-bar {
@@ -643,10 +693,11 @@ input {
 }
 
 .hand-scroll {
+  grid-area: hand;
   width: 100%;
   overflow-x: auto;
   overflow-y: visible;
-  padding: 22px 6px 6px;
+  padding: 18px 6px 5px;
   scrollbar-width: thin;
 }
 
@@ -655,6 +706,7 @@ input {
   align-items: flex-end;
   min-width: max-content;
   min-height: calc(var(--card-height) + 28px);
+  justify-content: center;
   padding-right: calc(var(--card-width) - var(--card-overlap));
 }
 
@@ -872,8 +924,18 @@ input {
   }
 
   .arena {
-    grid-template-rows: auto minmax(220px, 1fr);
+    grid-template-rows: auto auto minmax(220px, 1fr);
     padding: 6px 0;
+  }
+
+  .card-count-strip {
+    width: min(540px, calc(100vw - 18px));
+  }
+
+  .count-row span,
+  .count-row strong {
+    min-height: 22px;
+    font-size: 11px;
   }
 
   .opponent-rail {
@@ -909,7 +971,7 @@ input {
   }
 
   .action-bar {
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 6px;
   }
 
@@ -989,10 +1051,24 @@ input {
   }
 
   .arena {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
     gap: 4px;
     padding: 4px 0;
     min-height: 0;
+  }
+
+  .card-count-strip {
+    width: min(470px, calc(100vw - 150px));
+  }
+
+  .count-row {
+    grid-template-columns: repeat(15, minmax(20px, 1fr));
+  }
+
+  .count-row span,
+  .count-row strong {
+    min-height: 18px;
+    font-size: 10px;
   }
 
   .opponent-rail {
@@ -1029,8 +1105,8 @@ input {
   .table-stage {
     min-height: 0;
     height: 100%;
-    border-radius: 36px / 18px;
-    padding: 10px 18px;
+    border-radius: 50% / 18%;
+    padding: 9px 18px;
     gap: 5px;
   }
 
@@ -1236,10 +1312,25 @@ input {
   }
 
   .arena {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
     gap: 3px;
     min-height: 0;
     padding: 3px 0;
+  }
+
+  .card-count-strip {
+    width: min(500px, calc(100vw - 146px));
+    border-radius: 6px;
+  }
+
+  .count-row {
+    grid-template-columns: repeat(15, minmax(18px, 1fr));
+  }
+
+  .count-row span,
+  .count-row strong {
+    min-height: 17px;
+    font-size: 9px;
   }
 
   .opponent-rail {
@@ -1275,8 +1366,8 @@ input {
   .table-stage {
     min-height: 0;
     height: 100%;
-    border-radius: 24px;
-    padding: 7px 12px;
+    border-radius: 50% / 19%;
+    padding: 7px 14px;
     gap: 4px;
   }
 
@@ -1325,7 +1416,7 @@ input {
     align-items: end;
     gap: 3px 8px;
     padding: 3px 0 max(4px, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(6, 37, 52, 0.1), rgba(6, 37, 52, 0.96) 18%);
+    background: linear-gradient(180deg, rgba(5, 14, 23, 0.08), rgba(5, 14, 23, 0.96) 18%);
   }
 
   .bottom-dock.collapsed {

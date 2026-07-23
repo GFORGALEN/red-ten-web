@@ -208,6 +208,7 @@ export function App() {
         </header>
 
         <section className="arena">
+          <CardCountStrip cards={room.selfHand} />
           <OpponentRail room={room} />
           <Board room={room} now={now} onPickTribute={pickTribute} />
         </section>
@@ -352,6 +353,33 @@ function JoinRoomPanel({
         </button>
       </section>
     </main>
+  );
+}
+
+const countStripItems = [
+  { key: "big-joker", label: "大王", match: (card: Card) => card.rank === "JOKER" && card.jokerType === "big" },
+  { key: "small-joker", label: "小王", match: (card: Card) => card.rank === "JOKER" && card.jokerType === "small" },
+  ...["2", "A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3"].map((rank) => ({
+    key: rank,
+    label: rank,
+    match: (card: Card) => card.rank === rank
+  }))
+];
+
+function CardCountStrip({ cards }: { cards: Card[] }) {
+  return (
+    <div className="card-count-strip" aria-label="手牌点数统计">
+      <div className="count-row">
+        {countStripItems.map((item) => (
+          <span key={`label-${item.key}`}>{item.label}</span>
+        ))}
+      </div>
+      <div className="count-row counts">
+        {countStripItems.map((item) => (
+          <strong key={`count-${item.key}`}>{cards.filter(item.match).length}</strong>
+        ))}
+      </div>
+    </div>
   );
 }
 
